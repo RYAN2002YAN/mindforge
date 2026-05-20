@@ -1,0 +1,118 @@
+  <!DOCTYPE html>
+  <html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8">
+    <title>MindForge — Forge Your Mind</title>
+    <style>
+      body { margin: 0; overflow: hidden; background: #1a1a2e; }
+      canvas { display: block; }
+      #ui-layer {
+        position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+        color: #e0d5c1; font-family: 'Georgia', serif; text-align: center;
+        pointer-events: none;
+      }
+      #quest-text { font-size: 24px; text-shadow: 0 0 10px #c9a96e; }
+      #sub-text { font-size: 14px; opacity: 0.6; margin-top: 4px; }
+    </style>
+  </head>
+  <body>
+    <div id="ui-layer">
+      <div id="quest-text">⚔️ 欢迎来到 MindForge</div>
+      <div id="sub-text">点击地面移动 · 靠近 NPC 接任务</div>
+    </div>
+
+    <script type="importmap">
+      { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
+    </script>
+    <script type="module">
+      import * as THREE from 'three';
+
+      // 1. 创建场景
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x1a1a2e);
+      scene.fog = new THREE.Fog(0x1a1a2e, 10, 50);
+
+      // 2. 创建摄像机
+      const camera = new THREE.PerspectiveCamera(60, innerWidth/innerHeight, 0.5, 100);
+      camera.position.set(0, 8, 12);
+
+      // 3. 创建渲染器
+      const renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(innerWidth, innerHeight);
+      renderer.shadowMap.enabled = true;
+      document.body.appendChild(renderer.domElement);
+
+      // 4. 灯光
+      scene.add(new THREE.AmbientLight(0x404066, 2));
+      const sun = new THREE.DirectionalLight(0xffeedd, 3);
+      sun.position.set(10, 20, 5);
+      sun.castShadow = true;
+      scene.add(sun);
+
+      // 5. 地面
+      const ground = new THREE.Mesh(
+        new THREE.PlaneGeometry(40, 40),
+        new THREE.MeshStandardMaterial({ color: 0x2d5a1e, roughness: 0.9 })
+      );
+      ground.rotation.x = -Math.PI / 2;
+      ground.receiveShadow = true;
+      scene.add(ground);
+
+      // 6. 一个简单的房子（村庄中心）
+      const house = new THREE.Mesh(
+        new THREE.ConeGeometry(1.5, 2, 8),
+        new THREE.MeshStandardMaterial({ color: 0x8b4513 })
+      );
+      house.position.set(0, 1, -3);
+      house.castShadow = true;
+      scene.add(house);
+
+      const houseBody = new THREE.Mesh(
+        new THREE.CylinderGeometry(1.2, 1.2, 1.5, 8),
+        new THREE.MeshStandardMaterial({ color: 0xd4a574 })
+      );
+      houseBody.position.set(0, 0.75, -3);
+      houseBody.castShadow = true;
+      scene.add(houseBody);
+
+      // 7. 一个 NPC（红色柱子代表）
+      const npc = new THREE.Mesh(
+        new THREE.CapsuleGeometry(0.3, 0.8),
+        new THREE.MeshStandardMaterial({ color: 0xe74c3c, emissive: 0x330000 })
+      );
+      npc.position.set(0, 0.7, -2);
+      npc.castShadow = true;
+      scene.add(npc);
+
+      // 8. 粒子（萤火虫/魔法氛围）
+      const particles = new THREE.Points(
+        new THREE.BufferGeometry().setFromPoints(
+          Array.from({length: 200}, () => new THREE.Vector3(
+            (Math.random()-0.5)*20, Math.random()*6, (Math.random()-0.5)*20
+          ))
+        ),
+        new THREE.PointsMaterial({ color: 0xffdd88, size: 0.08, transparent: true, opacity: 0.6 })
+      );
+      scene.add(particles);
+
+      // 9. 渲染循环
+      function animate() {
+        requestAnimationFrame(animate);
+        particles.rotation.y += 0.0002;
+        npc.position.y = 0.7 + Math.sin(Date.now() * 0.003) * 0.1;
+        renderer.render(scene, camera);
+      }
+      animate();
+
+      // 10. 响应窗口大小变化
+      addEventListener('resize', () => {
+        camera.aspect = innerWidth / innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(innerWidth, innerHeight);
+      });
+
+      console.log('🏰 MindForge 世界已加载');
+    </script>
+  </body>
+  </html>
+  
