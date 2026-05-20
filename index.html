@@ -1,724 +1,590 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="UTF-8">
-  <title>MindForge — 溪谷 · The Vale</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      overflow: hidden; background: #3a3040;
-      font-family: 'Georgia', 'Noto Serif SC', serif;
-      cursor: grab;
-    }
-    body:active { cursor: grabbing; }
+<meta charset="UTF-8">
+<title>MindForge — 晨风农场</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    overflow:hidden; background:#1a1a2e;
+    font-family:'Georgia','Noto Serif SC',serif;
+    user-select:none;
+  }
+  canvas { display:block; }
 
-    #hud {
-      position: absolute; bottom: 28px; left: 50%; transform: translateX(-50%);
-      text-align: center; pointer-events: none; user-select: none;
-    }
-    #hud-title {
-      font-size: 26px; color: #f5e6d3;
-      text-shadow: 0 0 20px rgba(255,200,140,0.5), 0 2px 4px rgba(0,0,0,0.4);
-      letter-spacing: 4px;
-    }
-    #hud-hint {
-      font-size: 12px; color: rgba(220,200,170,0.65); margin-top: 5px;
-    }
+  /* 顶部状态 */
+  #top-bar {
+    position:absolute; top:14px; left:50%; transform:translateX(-50%);
+    display:flex; gap:28px; pointer-events:none;
+    color:#e8d5bc; font-size:12px;
+  }
+  .st { text-align:center; opacity:0.8; }
+  .st .v { font-size:20px; color:#ffcc66; text-shadow:0 0 8px rgba(255,200,100,.4); display:block; }
 
-    #top-bar {
-      position: absolute; top: 18px; left: 50%; transform: translateX(-50%);
-      display: flex; gap: 22px; pointer-events: none; user-select: none;
-    }
-    .stat-item { text-align: center; color: #e8d5bc; font-size: 11px; opacity: 0.7; }
-    .stat-value { font-size: 17px; color: #f0c060; text-shadow: 0 0 8px rgba(240,192,96,0.4); }
+  /* 任务面板 (右侧) */
+  #quest-panel {
+    position:absolute; right:16px; top:50%; transform:translateY(-50%);
+    background:rgba(24,18,12,0.9); border:1px solid rgba(180,140,90,0.4);
+    border-radius:10px; padding:16px 20px; color:#e0d0b8;
+    min-width:180px; pointer-events:none;
+    box-shadow:0 0 24px rgba(0,0,0,0.4);
+  }
+  #quest-panel h3 { font-size:11px; color:#b8956e; letter-spacing:2px; margin-bottom:8px; }
+  #quest-panel .q { font-size:14px; line-height:1.6; }
+  #quest-panel .q .highlight { color:#ffcc66; }
 
-    #dialog {
-      position: absolute; bottom: 130px; left: 50%; transform: translateX(-50%);
-      background: rgba(28,20,16,0.93); border: 1px solid rgba(200,160,100,0.35);
-      border-radius: 12px; padding: 18px 26px; color: #e8d5bc;
-      max-width: 400px; text-align: center; display: none;
-      backdrop-filter: blur(8px); box-shadow: 0 0 40px rgba(0,0,0,0.5);
-    }
-    #dialog .npc-name { font-size: 13px; color: #c9a050; margin-bottom: 5px; }
-    #dialog .npc-line { font-size: 15px; line-height: 1.55; }
-    #dialog .npc-hint  { font-size: 11px; color: rgba(200,180,150,0.45); margin-top: 8px; }
+  /* 底部提示 */
+  #hint {
+    position:absolute; bottom:16px; left:50%; transform:translateX(-50%);
+    color:rgba(220,200,170,0.6); font-size:11px; pointer-events:none;
+  }
 
-    #mountain-progress {
-      position: absolute; top: 70px; right: 20px;
-      pointer-events: none; user-select: none;
-      color: #e8d5bc; font-size: 11px; text-align: right; opacity: 0.75;
-    }
-    #mt-bar-bg {
-      width: 100px; height: 4px; background: rgba(255,255,255,0.15);
-      border-radius: 2px; margin-top: 3px; margin-left: auto;
-    }
-    #mt-bar-fill {
-      width: 8%; height: 100%; background: #f0c060;
-      border-radius: 2px; transition: width 0.5s ease;
-    }
+  /* NPC 对话框 */
+  #dialog {
+    position:absolute; bottom:100px; left:50%; transform:translateX(-50%);
+    background:rgba(20,14,8,0.94); border:1px solid rgba(200,150,90,0.45);
+    border-radius:12px; padding:18px 26px; color:#e8d5bc;
+    max-width:400px; text-align:center; display:none;
+    box-shadow:0 0 40px rgba(0,0,0,0.6);
+    z-index:10;
+  }
+  #dialog .n { font-size:13px; color:#c9a050; margin-bottom:4px; }
+  #dialog .l { font-size:15px; line-height:1.5; }
+  #dialog .h { font-size:11px; color:rgba(200,180,150,0.45); margin-top:8px; }
 
-    @media (max-width: 640px) {
-      #hud-title { font-size: 18px; }
-      #dialog { max-width: 88vw; padding: 12px 16px; }
-    }
-  </style>
+  /* 完成弹窗 */
+  #toast {
+    position:absolute; top:30%; left:50%; transform:translate(-50%,-50%);
+    font-size:22px; color:#ffdd88; pointer-events:none; opacity:0;
+    text-shadow:0 0 20px rgba(255,200,100,0.8);
+    transition:opacity 0.3s;
+  }
+</style>
 </head>
 <body>
 
-  <div id="top-bar">
-    <div class="stat-item"><div class="stat-value" id="stat-tasks">5</div>待解任务</div>
-    <div class="stat-item"><div class="stat-value" id="stat-day">1</div>今日完成</div>
-    <div class="stat-item"><div class="stat-value" id="stat-streak">🔥 3</div>连续天数</div>
-  </div>
+<div id="top-bar">
+  <div class="st"><span class="v" id="st-cleared">0</span>已开垦</div>
+  <div class="st"><span class="v" id="st-total">64</span>总地块</div>
+  <div class="st"><span class="v" id="st-streak">🔥 0</span>连续行动</div>
+</div>
 
-  <div id="mountain-progress">
-    登顶进度
-    <div id="mt-bar-bg"><div id="mt-bar-fill"></div></div>
-  </div>
+<div id="quest-panel">
+  <h3>📋 当前任务</h3>
+  <div class="q" id="quest-text">走向守夜人<br>点击他接取任务</div>
+</div>
 
-  <div id="hud">
-    <div id="hud-title">🏮 溪 谷 之 地</div>
-    <div id="hud-hint">⌨ WASD 移动 | 🖱 拖拽旋转 | 滚轮缩放 | 点击地面移动 | 点击 NPC 对话</div>
-  </div>
+<div id="toast"></div>
 
-  <div id="dialog">
-    <div class="npc-name" id="dlg-name"></div>
-    <div class="npc-line" id="dlg-line"></div>
-    <div class="npc-hint"  id="dlg-hint"></div>
-  </div>
+<div id="hint">⌨ WASD 移动 &nbsp;|&nbsp; 🖱 点击 NPC 接任务 &nbsp;|&nbsp; 🖱 点击高亮地块快速前往</div>
 
-  <!-- jsdelivr CDN — 国内可用，比 unpkg 快 -->
-  <script type="importmap">
-    { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }
-  </script>
+<div id="dialog">
+  <div class="n" id="dlg-name"></div>
+  <div class="l" id="dlg-line"></div>
+  <div class="h" id="dlg-hint"></div>
+</div>
 
-  <script type="module">
-    import * as THREE from 'three';
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }
+</script>
 
-    // ─────────────── DOM REFS ───────────────
-    const $hudHint  = document.getElementById('hud-hint');
-    const $dialog   = document.getElementById('dialog');
-    const $dlgName  = document.getElementById('dlg-name');
-    const $dlgLine  = document.getElementById('dlg-line');
-    const $dlgHint  = document.getElementById('dlg-hint');
-    const $statTask = document.getElementById('stat-tasks');
-    const $statDay  = document.getElementById('stat-day');
-    const $mtFill   = document.getElementById('mt-bar-fill');
+<script type="module">
+import * as THREE from 'three';
 
-    // ─────────────── SCENE · CAMERA · RENDERER ───────────────
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x3a3040);
-    scene.fog = new THREE.FogExp2(0xd4c5b9, 0.00028);
+// ══════════════════════════════ DOM ══════════════════════════════
+const $stCleared = document.getElementById('st-cleared');
+const $stStreak  = document.getElementById('st-streak');
+const $questText = document.getElementById('quest-text');
+const $toast     = document.getElementById('toast');
+const $dialog    = document.getElementById('dialog');
+const $dlgName   = document.getElementById('dlg-name');
+const $dlgLine   = document.getElementById('dlg-line');
+const $dlgHint   = document.getElementById('dlg-hint');
+const $hint      = document.getElementById('hint');
 
-    const camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.5, 100);
+// ══════════════════════════════ SCENE ══════════════════════════════
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x87ceeb);  // 天空蓝
+scene.fog = new THREE.Fog(0xc8e0f0, 20, 50);
 
-    const renderer = new THREE.WebGLRenderer({ antialias: false });
-    renderer.setSize(innerWidth, innerHeight);
-    renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.1;
-    document.body.appendChild(renderer.domElement);
+const SIZE = 14;  // 可视区域半宽
+const camera = new THREE.PerspectiveCamera(45, innerWidth/innerHeight, 0.5, 80);
+camera.position.set(0, 18, 13);
+camera.lookAt(0, 0, 0);
 
-    // ─────────────── LIGHTING ───────────────
-    scene.add(new THREE.HemisphereLight(0xffeedd, 0x4a6a3a, 1.0));
+const renderer = new THREE.WebGLRenderer({ antialias: false });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
+renderer.shadowMap.enabled = false;  // 无阴影 → 大幅提升性能
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+document.body.appendChild(renderer.domElement);
 
-    const sun = new THREE.DirectionalLight(0xffcc88, 4.0);
-    sun.position.set(15, 18, -4);
-    sun.castShadow = true;
-    sun.shadow.mapSize.set(1024, 1024);
-    sun.shadow.camera.near = 0.5;  sun.shadow.camera.far = 60;
-    sun.shadow.camera.left = -15;  sun.shadow.camera.right = 15;
-    sun.shadow.camera.top  =  15;  sun.shadow.camera.bottom = -15;
-    sun.shadow.bias = -0.0004;
-    scene.add(sun);
+// ══════════════════════════════ LIGHTING (极简) ═══════════════════
+scene.add(new THREE.HemisphereLight(0xffeedd, 0x779955, 1.3));
+scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+const sun = new THREE.DirectionalLight(0xfff5e8, 2.5);
+sun.position.set(5, 15, 8);
+scene.add(sun);
 
-    // ─────────────── HELPERS ───────────────
-    function createCottage(x, z, wallC, roofC, rot = 0) {
-      const g = new THREE.Group();
+// ══════════════════════════════ GROUND ════════════════════════════
+// 主地面 (草地)
+const ground = new THREE.Mesh(
+  new THREE.PlaneGeometry(40, 40),
+  new THREE.MeshLambertMaterial({ color: 0x7ec850 })
+);
+ground.rotation.x = -Math.PI/2;
+ground.receiveShadow = true;
+ground.name = 'ground';
+scene.add(ground);
 
-      const body = new THREE.Mesh(
-        new THREE.BoxGeometry(1.2, 1.3, 1.0),
-        new THREE.MeshStandardMaterial({ color: wallC, roughness: 0.7 })
-      );
-      body.position.y = 0.65;
-      body.castShadow = body.receiveShadow = true;
-      g.add(body);
+// 农场区域 (颜色略深)
+const farmBg = new THREE.Mesh(
+  new THREE.PlaneGeometry(15, 15),
+  new THREE.MeshLambertMaterial({ color: 0x8bc460 })
+);
+farmBg.rotation.x = -Math.PI/2;
+farmBg.position.y = 0.01;
+scene.add(farmBg);
 
-      const roof = new THREE.Mesh(
-        new THREE.ConeGeometry(1.0, 0.85, 4).rotateY(Math.PI / 4),
-        new THREE.MeshStandardMaterial({ color: roofC, roughness: 0.55 })
-      );
-      roof.position.y = 1.52;
-      roof.castShadow = roof.receiveShadow = true;
-      g.add(roof);
-
-      const door = new THREE.Mesh(
-        new THREE.BoxGeometry(0.28, 0.5, 0.05),
-        new THREE.MeshStandardMaterial({ color: 0x5c3a1e, roughness: 0.5 })
-      );
-      door.position.set(0, 0.25, 0.53);
-      g.add(door);
-
-      const wm = new THREE.MeshStandardMaterial({ color: 0xffcc66, emissive: 0xff9922, emissiveIntensity: 0.5, roughness: 0.3 });
-      [[-0.32, 0.53], [0.32, 0.53]].forEach(([wx, wz]) => {
-        const w = new THREE.Mesh(new THREE.PlaneGeometry(0.22, 0.22), wm);
-        w.position.set(wx, 0.9, wz);
-        g.add(w);
-      });
-
-      const chim = new THREE.Mesh(
-        new THREE.BoxGeometry(0.2, 0.45, 0.2),
-        new THREE.MeshStandardMaterial({ color: 0x8b7355, roughness: 0.7 })
-      );
-      chim.position.set(0.32, 1.7, -0.22);
-      chim.castShadow = true;
-      g.add(chim);
-
-      g.position.set(x, 0, z);
-      g.rotation.y = rot;
-      return g;
-    }
-
-    function createTree(x, z, s = 1) {
-      const g = new THREE.Group();
-      const th = 1.1 * s;
-      const trunk = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.1 * s, 0.16 * s, th, 5),
-        new THREE.MeshStandardMaterial({ color: 0x8b6b4a, roughness: 0.85 })
-      );
-      trunk.position.y = th / 2;
-      g.add(trunk);
-
-      [0x5a7a3a, 0x4d6b2e, 0x3d5a22].forEach((c, i) => {
-        const cr = new THREE.Mesh(
-          new THREE.ConeGeometry(0.65 * s - i * 0.13 * s, 0.7 * s, 6),
-          new THREE.MeshStandardMaterial({ color: c, roughness: 0.7 })
-        );
-        cr.position.y = th + i * 0.4 * s;
-        cr.castShadow = cr.receiveShadow = true;
-        g.add(cr);
-      });
-      g.position.set(x, 0, z);
-      return g;
-    }
-
-    // ─────────────── GROUND ───────────────
-    const ground = new THREE.Mesh(
-      new THREE.PlaneGeometry(50, 50),
-      new THREE.MeshStandardMaterial({ color: 0x5a7d4a, roughness: 0.95 })
+// 栅栏
+function addFence(x, z, rotY, len) {
+  const rail = new THREE.Mesh(
+    new THREE.BoxGeometry(len, 0.08, 0.06),
+    new THREE.MeshLambertMaterial({ color: 0xc4946e })
+  );
+  rail.position.set(x, 0.3, z);
+  rail.rotation.y = rotY;
+  scene.add(rail);
+  // 柱子
+  const posts = Math.floor(len / 0.7);
+  for (let i = 0; i <= posts; i++) {
+    const t = (i / posts - 0.5) * len;
+    const post = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.04, 0.05, 0.45, 5),
+      new THREE.MeshLambertMaterial({ color: 0x8b6b4a })
     );
-    ground.rotation.x = -Math.PI / 2;
-    ground.receiveShadow = true;
-    ground.name = 'ground';
-    scene.add(ground);
-
-    const plaza = new THREE.Mesh(
-      new THREE.CylinderGeometry(1.5, 1.6, 0.04, 20),
-      new THREE.MeshStandardMaterial({ color: 0xc8b898, roughness: 0.8 })
+    post.position.set(
+      x + (rotY === 0 ? t : 0),
+      0.22,
+      z + (rotY !== 0 ? t : 0)
     );
-    plaza.position.y = 0.02;
-    plaza.receiveShadow = true;
-    scene.add(plaza);
+    scene.add(post);
+  }
+}
+addFence(0, -7.3, 0, 15);
+addFence(0,  7.3, 0, 15);
+addFence(-7.3, 0, Math.PI/2, 15);
+addFence( 7.3, 0, Math.PI/2, 15);
 
-    // ─────────────── MOUNTAIN: 「远山」─ 长期目标视觉化 ───────────────
-    const mtGroup = new THREE.Group();
+// ══════════════════════════════ FARMHOUSE ══════════════════════════
+const house = new THREE.Group();
+house.add(new THREE.Mesh(
+  new THREE.BoxGeometry(1.8, 1.6, 1.4),
+  new THREE.MeshLambertMaterial({ color: 0xf5ecd7 })
+)).position.y = 0.8;
+house.add(new THREE.Mesh(
+  new THREE.ConeGeometry(1.3, 0.9, 4).rotateY(Math.PI/4),
+  new THREE.MeshLambertMaterial({ color: 0xc44a30 })
+)).position.y = 2.05;
+// 门
+house.add(new THREE.Mesh(
+  new THREE.BoxGeometry(0.3, 0.55, 0.05),
+  new THREE.MeshLambertMaterial({ color: 0x5c3a1e })
+)).position.set(0, 0.28, 0.73);
+house.position.set(0, 0, -5.6);
+scene.add(house);
 
-    const mtBody = new THREE.Mesh(
-      new THREE.ConeGeometry(3.5, 8, 16),
-      new THREE.MeshStandardMaterial({ color: 0x6b5c4a, roughness: 0.8 })
+// ══════════════════════════════ TILE GRID ══════════════════════════
+const GRID = 8;
+const TILE_SIZE = 0.7;
+const GAP = 0.08;
+const STEP = TILE_SIZE + GAP;
+const OFFSET = (GRID - 1) * STEP / 2;
+
+const tiles = [];             // { mesh, cleared, row, col }
+const tileGroup = new THREE.Group();
+const darkMat  = new THREE.MeshLambertMaterial({ color: 0x5c4028 });   // 未开垦: 棕色
+const clearMat = new THREE.MeshLambertMaterial({ color: 0x8b9a3e });   // 已开垦: 翠绿
+
+for (let r = 0; r < GRID; r++) {
+  for (let c = 0; c < GRID; c++) {
+    const tile = new THREE.Mesh(
+      new THREE.BoxGeometry(TILE_SIZE, 0.04, TILE_SIZE),
+      darkMat.clone()
     );
-    mtBody.position.y = 4;
-    mtBody.castShadow = mtBody.receiveShadow = true;
-    mtGroup.add(mtBody);
+    tile.position.set(c * STEP - OFFSET, 0.03, r * STEP - OFFSET);
+    tile.receiveShadow = true;
+    tileGroup.add(tile);
 
-    const mtSnow = new THREE.Mesh(
-      new THREE.ConeGeometry(1.6, 2.5, 16),
-      new THREE.MeshStandardMaterial({ color: 0xf8f4e8, roughness: 0.4 })
+    // 小十字标记 (未开垦地块上的杂草符号)
+    const mark = new THREE.Mesh(
+      new THREE.BoxGeometry(0.12, 0.06, 0.04),
+      new THREE.MeshLambertMaterial({ color: 0x6b5030 })
     );
-    mtSnow.position.y = 8;
-    mtSnow.castShadow = true;
-    mtGroup.add(mtSnow);
+    mark.position.set(c * STEP - OFFSET, 0.07, r * STEP - OFFSET);
+    tileGroup.add(mark);
 
-    // 三个营地环
-    const campDefs = [
-      { y: 2.5, color: 0x88aa88 },   // 营地 I — 入门
-      { y: 5.0, color: 0x998866 },   // 营地 II — 进阶
-      { y: 7.2, color: 0xccbbaa },   // 登顶营
-    ];
-    const campFlags = [];
-    campDefs.forEach(camp => {
-      const ring = new THREE.Mesh(
-        new THREE.TorusGeometry(1.2, 0.15, 8, 16),
-        new THREE.MeshStandardMaterial({ color: camp.color, roughness: 0.6 })
-      );
-      ring.position.y = camp.y;
-      ring.rotation.x = Math.PI / 2;
-      ring.castShadow = ring.receiveShadow = true;
-      mtGroup.add(ring);
+    tiles.push({ mesh: tile, mark, cleared: false, row: r, col: c });
+  }
+}
+scene.add(tileGroup);
 
-      const pole = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.04, 0.04, 0.9, 6),
-        new THREE.MeshStandardMaterial({ color: 0x5c4030 })
-      );
-      pole.position.set(1.0, camp.y + 0.45, 0);
-      pole.castShadow = true;
-      mtGroup.add(pole);
+// ══════════════════════════════ TARGET RING ═══════════════════════
+const targetRing = new THREE.Mesh(
+  new THREE.TorusGeometry(TILE_SIZE/2 + 0.05, 0.06, 8, 16),
+  new THREE.MeshBasicMaterial({ color: 0xffd700, transparent: true, opacity: 0.8, depthTest: false })
+);
+targetRing.rotation.x = -Math.PI/2;
+targetRing.visible = false;
+scene.add(targetRing);
 
-      const flag = new THREE.Mesh(
-        new THREE.PlaneGeometry(0.35, 0.22),
-        new THREE.MeshStandardMaterial({ color: 0xff6630, roughness: 0.4, side: THREE.DoubleSide })
-      );
-      flag.position.set(1.2, camp.y + 0.72, 0);
-      mtGroup.add(flag);
-      campFlags.push(flag);
-    });
+// ══════════════════════════════ PLAYER ════════════════════════════
+const player = new THREE.Group();
+player.add(new THREE.Mesh(
+  new THREE.CapsuleGeometry(0.18, 0.3, 4, 8),
+  new THREE.MeshLambertMaterial({ color: 0x4488cc })
+)).position.y = 0.45;
+player.add(new THREE.Mesh(
+  new THREE.SphereGeometry(0.18, 8, 6),
+  new THREE.MeshLambertMaterial({ color: 0xffdbb4 })
+)).position.y = 0.95;
+// 草帽
+player.add(new THREE.Mesh(
+  new THREE.CylinderGeometry(0.16, 0.24, 0.08, 8),
+  new THREE.MeshLambertMaterial({ color: 0xe8d5a0 })
+)).position.y = 1.1;
+player.add(new THREE.Mesh(
+  new THREE.CylinderGeometry(0.22, 0.18, 0.1, 8),
+  new THREE.MeshLambertMaterial({ color: 0xe8d5a0 })
+)).position.y = 1.18;
+player.position.set(0, 0, -4);
+scene.add(player);
 
-    // 山顶光珠
-    const summitGlow = new THREE.Mesh(
-      new THREE.SphereGeometry(0.3, 8, 6),
-      new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffddaa, emissiveIntensity: 1.0, roughness: 0.1 })
+// 玩家影子 (圆盘)
+const playerShadow = new THREE.Mesh(
+  new THREE.CircleGeometry(0.2, 8),
+  new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.25, depthTest: false })
+);
+playerShadow.rotation.x = -Math.PI/2;
+playerShadow.position.y = 0.015;
+player.add(playerShadow);
+
+// ══════════════════════════════ NPC ════════════════════════════════
+const npc = new THREE.Group();
+npc.add(new THREE.Mesh(
+  new THREE.CapsuleGeometry(0.2, 0.4, 4, 8),
+  new THREE.MeshLambertMaterial({ color: 0x885540 })
+)).position.y = 0.5;
+npc.add(new THREE.Mesh(
+  new THREE.SphereGeometry(0.19, 8, 6),
+  new THREE.MeshLambertMaterial({ color: 0xd4b896 })
+)).position.y = 1.05;
+// 白发
+npc.add(new THREE.Mesh(
+  new THREE.SphereGeometry(0.2, 8, 6),
+  new THREE.MeshLambertMaterial({ color: 0xe8e0d0 })
+)).position.y = 1.06;
+// 斗篷
+npc.add(new THREE.Mesh(
+  new THREE.ConeGeometry(0.3, 0.4, 6),
+  new THREE.MeshLambertMaterial({ color: 0x6b4040 })
+)).position.y = 0.35;
+
+// NPC头顶感叹号
+const exclGroup = new THREE.Group();
+exclGroup.add(new THREE.Mesh(
+  new THREE.CylinderGeometry(0.04, 0.04, 0.25, 6),
+  new THREE.MeshBasicMaterial({ color: 0xff4444 })
+)).position.y = 1.5;
+exclGroup.add(new THREE.Mesh(
+  new THREE.SphereGeometry(0.08, 6, 4),
+  new THREE.MeshBasicMaterial({ color: 0xff4444 })
+)).position.y = 1.7;
+npc.add(exclGroup);
+
+npc.position.set(1.5, 0, -4.8);
+scene.add(npc);
+
+// ══════════════════════════════ SPARKLE POOL ═══════════════════════
+const sparkles = [];
+const sparkGeo = new THREE.SphereGeometry(0.04, 4, 3);
+function burstSparkles(x, y, z, count = 30) {
+  for (let i = 0; i < count; i++) {
+    const s = new THREE.Mesh(
+      sparkGeo,
+      new THREE.MeshBasicMaterial({ color: 0xffdd66, transparent: true, opacity: 1 })
     );
-    summitGlow.position.y = 9.3;
-    mtGroup.add(summitGlow);
-
-    mtGroup.position.set(0, 0, -24);
-    scene.add(mtGroup);
-
-    // ─────────────── BUILDINGS ───────────────
-    const cottageDefs = [
-      { x: 0,    z: -5.5, rot: 0,              wall: 0xf5ecd7, roof: 0xc4723a, name: ' 村长屋' },
-      { x: -4.5, z: -1.5, rot: Math.PI / 5,     wall: 0xefe0c8, roof: 0xb85a2e, name: ' 铁匠铺' },
-      { x: 4.5,  z: -1.5, rot: -Math.PI / 5,    wall: 0xf0e4d0, roof: 0x9e4a2a, name: ' 旅店'   },
-      { x: 0,    z: 4.5,  rot: Math.PI,          wall: 0xe8dcc8, roof: 0x6b4a3a, name: ' 书屋'   },
-    ];
-
-    cottageDefs.forEach(def => {
-      scene.add(createCottage(def.x, def.z, def.wall, def.roof, def.rot));
-
-      // 石板路
-      const mat = new THREE.MeshStandardMaterial({ color: 0xb8a896, roughness: 0.85 });
-      for (let i = 0; i < 12; i++) {
-        const t = i / 11;
-        const stone = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.14, 0.05, 5), mat);
-        stone.position.set(
-          def.x * t + (Math.random() - 0.5) * 0.5,
-          0.03,
-          def.z * t + (Math.random() - 0.5) * 0.5
-        );
-        stone.receiveShadow = true;
-        scene.add(stone);
-      }
-    });
-
-    // 建筑名牌 (sprite)
-    cottageDefs.forEach(def => {
-      const canvas = document.createElement('canvas');
-      canvas.width = 128; canvas.height = 32;
-      const ctx = canvas.getContext('2d');
-      ctx.clearRect(0, 0, 128, 32);
-      ctx.font = '14px Georgia, "Noto Serif SC", serif';
-      ctx.fillStyle = '#f5e6d3';
-      ctx.textAlign = 'center';
-      ctx.shadowColor = 'rgba(0,0,0,0.6)';
-      ctx.shadowBlur = 4;
-      ctx.fillText(def.name, 64, 20);
-
-      const tex = new THREE.CanvasTexture(canvas);
-      tex.minFilter = THREE.LinearFilter;
-      const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false }));
-      sprite.scale.set(1.6, 0.4, 1);
-      sprite.position.set(def.x, 2.5, def.z);
-      scene.add(sprite);
-    });
-
-    // ─────────────── TREES ───────────────
-    [
-      [-7,-7],[7,-7],[-7,7],[7,7],[-6,-2.5],[6,-2.5],
-      [-6,2.5],[6,2.5],[-2.5,-7],[2.5,-7],[-2.5,7],[2.5,7]
-    ].forEach(([tx, tz]) => {
-      scene.add(createTree(
-        tx + (Math.random() - 0.5) * 0.8,
-        tz + (Math.random() - 0.5) * 0.8,
-        0.7 + Math.random() * 0.7
-      ));
-    });
-
-    // ─────────────── FLOWERS ───────────────
-    const flowerColors = [0xffdddd, 0xffffff, 0xffffcc, 0xffd4e0, 0xfff0dd];
-    for (let i = 0; i < 30; i++) {
-      const a = Math.random() * Math.PI * 2, r = 1.5 + Math.random() * 5;
-      const fx = Math.cos(a) * r + (Math.random() - 0.5) * 1.5;
-      const fz = Math.sin(a) * r + (Math.random() - 0.5) * 1.5;
-      const color = flowerColors[Math.floor(Math.random() * flowerColors.length)];
-
-      scene.add(new THREE.Mesh(
-        new THREE.CylinderGeometry(0.012, 0.016, 0.22, 4),
-        new THREE.MeshStandardMaterial({ color: 0x4a7a3a })
-      )).position.set(fx, 0.11, fz);
-
-      scene.add(new THREE.Mesh(
-        new THREE.SphereGeometry(0.04, 4, 3),
-        new THREE.MeshStandardMaterial({ color, roughness: 0.4 })
-      )).position.set(fx, 0.24, fz);
-    }
-
-    // ─────────────── CAMPFIRE ───────────────
-    const cfGroup = new THREE.Group();
-    for (let i = 0; i < 6; i++) {
-      const s = new THREE.Mesh(
-        new THREE.SphereGeometry(0.12, 4, 3),
-        new THREE.MeshStandardMaterial({ color: 0x7a7a7a, roughness: 0.7 })
-      );
-      s.position.set(Math.cos(i / 6 * Math.PI * 2) * 0.5, 0.07, Math.sin(i / 6 * Math.PI * 2) * 0.5);
-      s.castShadow = true;
-      cfGroup.add(s);
-    }
-    for (let i = 0; i < 3; i++) {
-      const log = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.05, 0.05, 0.8, 5),
-        new THREE.MeshStandardMaterial({ color: 0x4a3020, roughness: 0.95 })
-      );
-      log.rotation.z = Math.PI / 2;
-      log.rotation.y = (i / 3) * Math.PI;
-      log.position.y = 0.1;
-      log.castShadow = true;
-      cfGroup.add(log);
-    }
-    scene.add(cfGroup);
-
-    const fireLight = new THREE.PointLight(0xff8830, 7, 5, 1.5);
-    fireLight.position.set(0, 0.55, 0);
-    fireLight.castShadow = true;
-    fireLight.shadow.mapSize.set(256, 256);
-    scene.add(fireLight);
-
-    const flameMat = new THREE.MeshStandardMaterial({
-      color: 0xff8830, emissive: 0xff5500, emissiveIntensity: 1.0, roughness: 0.2
-    });
-    const flame = new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.5, 6), flameMat);
-    flame.position.set(0, 0.42, 0);
-    scene.add(flame);
-
-    // ─────────────── NPC: 守夜人 ───────────────
-    const npcGroup = new THREE.Group();
-    const npcBody = new THREE.Mesh(
-      new THREE.CapsuleGeometry(0.22, 0.5, 4, 8),
-      new THREE.MeshStandardMaterial({ color: 0x5c4060, roughness: 0.5 })
-    );
-    npcBody.position.y = 0.5;
-    npcGroup.add(npcBody);
-
-    const npcHead = new THREE.Mesh(
-      new THREE.SphereGeometry(0.2, 8, 6),
-      new THREE.MeshStandardMaterial({ color: 0xd4b896, roughness: 0.6 })
-    );
-    npcHead.position.y = 1.0;
-    npcGroup.add(npcHead);
-
-    const hood = new THREE.Mesh(
-      new THREE.ConeGeometry(0.25, 0.28, 6),
-      new THREE.MeshStandardMaterial({ color: 0x4a3050, roughness: 0.55 })
-    );
-    hood.position.y = 1.22;
-    npcHead.add(hood);
-
-    const halo = new THREE.Mesh(
-      new THREE.TorusGeometry(0.32, 0.035, 8, 20),
-      new THREE.MeshStandardMaterial({ color: 0xffcc88, emissive: 0xffaa44, emissiveIntensity: 0.7, roughness: 0.2 })
-    );
-    halo.rotation.x = Math.PI / 2;
-    halo.position.y = 1.4;
-    npcGroup.add(halo);
-
-    const glowDisc = new THREE.Mesh(
-      new THREE.CircleGeometry(0.5, 16),
-      new THREE.MeshBasicMaterial({ color: 0xffcc88, transparent: true, opacity: 0.2, depthWrite: false })
-    );
-    glowDisc.rotation.x = -Math.PI / 2;
-    glowDisc.position.y = 0.01;
-    npcGroup.add(glowDisc);
-
-    npcGroup.position.set(1.2, 0, -1.8);
-    scene.add(npcGroup);
-
-    // ─────────────── PLAYER ───────────────
-    const player = new THREE.Group();
-
-    const pBody = new THREE.Mesh(
-      new THREE.CapsuleGeometry(0.18, 0.35, 4, 8),
-      new THREE.MeshStandardMaterial({ color: 0x5b8c5a, roughness: 0.4 })
-    );
-    pBody.position.y = 0.55;
-    pBody.castShadow = true;
-    player.add(pBody);
-
-    const pHead = new THREE.Mesh(
-      new THREE.SphereGeometry(0.2, 10, 8),
-      new THREE.MeshStandardMaterial({ color: 0xffdbb4, roughness: 0.5 })
-    );
-    pHead.position.y = 1.08;
-    pHead.castShadow = true;
-    player.add(pHead);
-
-    // 红帽子
-    const pHat = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.16, 0.2, 0.1, 8),
-      new THREE.MeshStandardMaterial({ color: 0xc44a30, roughness: 0.5 })
-    );
-    pHat.position.y = 1.25;
-    player.add(pHat);
-    const pHatTop = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.1, 0.16, 0.08, 8),
-      new THREE.MeshStandardMaterial({ color: 0xc44a30, roughness: 0.5 })
-    );
-    pHatTop.position.y = 1.35;
-    player.add(pHatTop);
-
-    const staff = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.025, 0.025, 0.6, 6),
-      new THREE.MeshStandardMaterial({ color: 0x8b6b4a })
-    );
-    staff.position.set(0.22, 0.4, 0.1);
-    staff.rotation.z = -0.25;
-    player.add(staff);
-
-    player.position.set(0, 0, 0);
-    scene.add(player);
-
-    const playerLight = new THREE.PointLight(0xffddaa, 2, 3, 2);
-    playerLight.position.y = 1;
-    player.add(playerLight);
-
-    // ─────────────── PARTICLES ───────────────
-    const FF = 80;
-    const ffPos = new Float32Array(FF * 3);
-    const ffData = [];
-    for (let i = 0; i < FF; i++) {
-      const by = 0.3 + Math.random() * 4.5;
-      ffData.push({ by, sp: 0.3 + Math.random() * 1.0, amp: 0.15 + Math.random() * 0.7, ph: Math.random() * Math.PI * 2 });
-      ffPos[i * 3] = (Math.random() - 0.5) * 16;
-      ffPos[i * 3 + 1] = by;
-      ffPos[i * 3 + 2] = (Math.random() - 0.5) * 16;
-    }
-    const ffGeo = new THREE.BufferGeometry();
-    ffGeo.setAttribute('position', new THREE.BufferAttribute(ffPos, 3));
-    const fireflies = new THREE.Points(ffGeo, new THREE.PointsMaterial({
-      color: 0xffdd88, size: 0.07, transparent: true, opacity: 0.65,
-      blending: THREE.AdditiveBlending, depthWrite: false,
-    }));
-    scene.add(fireflies);
-
-    const SP = 20;
-    const spPos = new Float32Array(SP * 3);
-    const spData = [];
-    for (let i = 0; i < SP; i++) {
-      spData.push({ sp: 0.5 + Math.random() * 1.2, life: Math.random(), maxL: 0.4 + Math.random() * 1.2 });
-      spPos[i * 3] = (Math.random() - 0.5) * 0.35;
-      spPos[i * 3 + 1] = 0.25 + Math.random() * 1.2;
-      spPos[i * 3 + 2] = (Math.random() - 0.5) * 0.35;
-    }
-    const spGeo = new THREE.BufferGeometry();
-    spGeo.setAttribute('position', new THREE.BufferAttribute(spPos, 3));
-    const sparks = new THREE.Points(spGeo, new THREE.PointsMaterial({
-      color: 0xff9944, size: 0.05, transparent: true, opacity: 0.7,
-      blending: THREE.AdditiveBlending, depthWrite: false,
-    }));
-    scene.add(sparks);
-
-    // ─────────────── INPUT STATE ───────────────
-    const keys = {};
-    const input = {
-      moveDir: new THREE.Vector3(),
-      targetPos: null,
-      camTheta: 0.55, camPhi: 1.0, camDist: 9,
-      isDragging: false,
-      prevMouse: { x: 0, y: 0 },
-      dragStart: { x: 0, y: 0 },
+    s.position.set(x, y, z);
+    s.userData = {
+      vx: (Math.random()-0.5)*3,
+      vy: 1 + Math.random()*4,
+      vz: (Math.random()-0.5)*3,
+      life: 0.6 + Math.random()*0.8,
     };
+    scene.add(s);
+    sparkles.push(s);
+  }
+}
 
-    window.addEventListener('keydown', e => { keys[e.key.toLowerCase()] = true; });
-    window.addEventListener('keyup',   e => { keys[e.key.toLowerCase()] = false; });
+// ══════════════════════════════ GAME STATE ════════════════════════
+let clearedCount = 0;
+let currentTarget = null;   // { row, col }
+let streakCount = 0;
+let playerTarget = null;    // click-to-move
+const keys = {};
 
-    // ─────────────── MOUSE INPUT ───────────────
-    renderer.domElement.addEventListener('pointerdown', e => {
-      input.isDragging = true;
-      input.prevMouse.x = e.clientX;
-      input.prevMouse.y = e.clientY;
-      input.dragStart.x = e.clientX;
-      input.dragStart.y = e.clientY;
-    });
+const questMessages = [
+  '开垦你脚下这片土地——走向那块发光的地块，它就会恢复生机。',
+  '好极了！看到那块还在发光的地了吗？继续开垦吧。',
+  '一锄一锄来。每块地变绿，溪谷就多一分生机。',
+  '你做得很好。继续吧，我在树荫下看着。',
+  '那片棕色的荒地——走上去，它就属于你了。',
+  '你知道吗？古代的农人相信，土地记得每一个踩过它的人。',
+];
 
-    window.addEventListener('pointerup', () => { input.isDragging = false; });
+// ══════════════════════════════ HELPERS ═══════════════════════════
+function getTileWorldPos(row, col) {
+  return new THREE.Vector3(col * STEP - OFFSET, 0.05, row * STEP - OFFSET);
+}
 
-    window.addEventListener('pointermove', e => {
-      if (!input.isDragging) return;
-      const dx = e.clientX - input.prevMouse.x;
-      const dy = e.clientY - input.prevMouse.y;
-      input.camTheta -= dx * 0.005;
-      input.camPhi   += dy * 0.005;
-      input.camPhi    = Math.max(0.3, Math.min(1.45, input.camPhi));
-      input.prevMouse.x = e.clientX;
-      input.prevMouse.y = e.clientY;
-    });
+function clearTile(tileData) {
+  if (tileData.cleared) return;
+  tileData.cleared = true;
+  tileData.mesh.material = clearMat.clone();
+  if (tileData.mark) {
+    tileData.mark.material.opacity = 0;
+    tileData.mark.scale.set(0,0,0);
+  }
+  clearedCount++;
+  $stCleared.textContent = clearedCount;
 
-    renderer.domElement.addEventListener('wheel', e => {
-      input.camDist += e.deltaY * 0.012;
-      input.camDist = Math.max(3, Math.min(22, input.camDist));
-    });
+  const pos = getTileWorldPos(tileData.row, tileData.col);
+  burstSparkles(pos.x, pos.y + 0.2, pos.z, 25);
 
-    renderer.domElement.addEventListener('click', e => {
-      const moved = Math.abs(e.clientX - input.dragStart.x) + Math.abs(e.clientY - input.dragStart.y);
-      if (moved > 5) return;
+  // 完成率过半 → 栅栏外出现小路 (简化: 只更新颜色)
+  if (clearedCount === Math.floor(GRID*GRID/2)) {
+    showToast('🌟 过半了！农场正在苏醒...');
+  }
+  if (clearedCount === GRID*GRID) {
+    showToast('🏆 全部开垦完毕！你是溪谷的守护者。');
+  }
 
-      const mouse = new THREE.Vector2(
-        (e.clientX / innerWidth) * 2 - 1,
-        -(e.clientY / innerHeight) * 2 + 1
-      );
-      const rc = new THREE.Raycaster();
-      rc.setFromCamera(mouse, camera);
+  currentTarget = null;
+  targetRing.visible = false;
+  assignNewTask();
+}
 
-      // NPC?
-      if (rc.intersectObjects(npcGroup.children, true).length) {
-        $dlgName.textContent = '守夜人 · 艾尔文';
-        $dlgLine.textContent = '「旅行者，你来了。篝火旁还有未完成的使命——今日可有一事，值得你为之挥剑？」';
-        $dlgHint.textContent = '按 E 键接取任务 · 按 Esc 离开';
-        $dialog.style.display = 'block';
-        return;
+function assignNewTask() {
+  // 找一个未开垦的地块
+  const uncleared = tiles.filter(t => !t.cleared);
+  if (uncleared.length === 0) {
+    $questText.innerHTML = '<span style="color:#ffdd88;">✨ 全部完成！</span><br>农场已完全复苏。';
+    $dlgLine.textContent = '「不可思议……整片农场都活过来了。你是真正的溪谷守护者。」';
+    return;
+  }
+  const pick = uncleared[Math.floor(Math.random() * uncleared.length)];
+  currentTarget = { row: pick.row, col: pick.col };
+  const pos = getTileWorldPos(pick.row, pick.col);
+  targetRing.position.copy(pos);
+  targetRing.visible = true;
+  const colLabel = String.fromCharCode(65 + pick.col);
+  $questText.innerHTML = `开垦地块 <span class="highlight">${colLabel}${pick.row+1}</span><br>走过去，它就会变绿`;
+}
+
+function showToast(msg) {
+  $toast.textContent = msg;
+  $toast.style.opacity = '1';
+  setTimeout(() => { $toast.style.opacity = '0'; }, 2000);
+}
+
+// ══════════════════════════════ NPC DIALOGUE ═══════════════════════
+let questIndex = 0;
+function talkToNPC() {
+  $dlgName.textContent = '守夜人 · 艾尔文';
+  $dlgLine.textContent = questMessages[questIndex % questMessages.length];
+  $dlgHint.textContent = '按 Enter 接取任务 · 按 Esc 离开';
+  $dialog.style.display = 'block';
+  questIndex++;
+}
+
+window.addEventListener('keydown', e => {
+  keys[e.key.toLowerCase()] = true;
+
+  if (e.key === 'Escape') { $dialog.style.display = 'none'; return; }
+  if ($dialog.style.display !== 'block') return;
+
+  if (e.key === 'Enter') {
+    $dialog.style.display = 'none';
+    if (!currentTarget) assignNewTask();
+    streakCount++;
+    $stStreak.textContent = '🔥 ' + streakCount;
+  }
+});
+
+window.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
+
+// ══════════════════════════════ CLICK ══════════════════════════════
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+
+renderer.domElement.addEventListener('click', e => {
+  mouse.x = (e.clientX/innerWidth)*2 - 1;
+  mouse.y = -(e.clientY/innerHeight)*2 + 1;
+  raycaster.setFromCamera(mouse, camera);
+
+  // NPC?
+  const npcHits = raycaster.intersectObjects(npc.children, true);
+  if (npcHits.length) { talkToNPC(); return; }
+
+  // Target tile ring?
+  if (targetRing.visible) {
+    const ringHits = raycaster.intersectObject(targetRing);
+    if (ringHits.length && currentTarget) {
+      playerTarget = getTileWorldPos(currentTarget.row, currentTarget.col);
+      return;
+    }
+  }
+
+  // Ground (move to point)
+  const gh = raycaster.intersectObject(ground);
+  if (gh.length) {
+    playerTarget = gh[0].point.clone();
+    playerTarget.y = 0;
+  }
+});
+
+// ══════════════════════════════ UPDATE ══════════════════════════════
+const _v3 = new THREE.Vector3();
+function updatePlayer(dt) {
+  const speed = 4.5;
+  const pos = player.position;
+
+  // click-to-move 优先
+  if (playerTarget) {
+    const to = _v3.copy(playerTarget).sub(pos);
+    to.y = 0;
+    const dist = to.length();
+    if (dist < 0.25) {
+      playerTarget = null;
+      // 检查是否走到了目标地块
+      if (currentTarget) {
+        const tp = getTileWorldPos(currentTarget.row, currentTarget.col);
+        if (Math.abs(pos.x - tp.x) < STEP*0.6 && Math.abs(pos.z - tp.z) < STEP*0.6) {
+          const tile = tiles.find(t => t.row === currentTarget.row && t.col === currentTarget.col);
+          if (tile) clearTile(tile);
+        }
       }
+    } else {
+      const dir = to.normalize();
+      pos.x += dir.x * speed * dt;
+      pos.z += dir.z * speed * dt;
+      // face direction
+      const a = Math.atan2(dir.x, dir.z);
+      player.rotation.y += (a - player.rotation.y) * 0.2;
+    }
+  }
 
-      // Ground?
-      const gh = rc.intersectObject(ground);
-      if (gh.length) { input.targetPos = gh[0].point.clone(); }
-    });
+  // WASD
+  if (!playerTarget) {
+    let mx = 0, mz = 0;
+    if (keys['w'] || keys['arrowup'])    mz -= 1;
+    if (keys['s'] || keys['arrowdown'])  mz += 1;
+    if (keys['a'] || keys['arrowleft'])  mx -= 1;
+    if (keys['d'] || keys['arrowright']) mx += 1;
 
-    // ─────────────── KEYBOARD DIALOGUE ───────────────
-    window.addEventListener('keydown', e => {
-      if (e.key === 'Escape') { $dialog.style.display = 'none'; return; }
-      if ($dialog.style.display !== 'block') return;
-
-      if (e.key === 'e' || e.key === 'E') {
-        $dlgLine.textContent = '「好！溪谷今日有三件事：① 取水 ② 劈柴 ③ 送信给铁匠。你想从哪一件开始？」';
-        $dlgHint.textContent = '按 1 / 2 / 3 选择任务 · 按 Esc 离开';
-      }
-      if (['1','2','3'].includes(e.key)) {
-        const tasks = ['取水', '劈柴', '送信给铁匠'];
-        $dlgLine.textContent = `「${tasks[+e.key - 1]}——明智之选。任务完成时回到篝火旁，我会为你记下。」`;
-        $dlgHint.textContent = '任务已接取 ✨ 按 Esc 关闭';
-        $statTask.textContent = String(Math.max(0, parseInt($statTask.textContent) - 1));
-        $statDay.textContent  = String(parseInt($statDay.textContent) + 1);
-        // 登顶进度 +5%
-        const pct = Math.min(100, parseInt($mtFill.style.width || 8) + 5);
-        $mtFill.style.width = pct + '%';
-      }
-    });
-
-    // ─────────────── PLAYER UPDATE ───────────────
-    function updatePlayer(dt) {
-      const speed = 3.5;
-      const pos = player.position;
-
-      const fwd = new THREE.Vector3(
-        Math.sin(input.camPhi) * Math.cos(input.camTheta),
-        0,
-        Math.sin(input.camPhi) * Math.sin(input.camTheta)
-      ).normalize();
-      const right = new THREE.Vector3().crossVectors(fwd, new THREE.Vector3(0,1,0)).normalize();
-
-      input.moveDir.set(0,0,0);
-      if (keys['w'] || keys['arrowup'])    input.moveDir.add(fwd);
-      if (keys['s'] || keys['arrowdown'])  input.moveDir.sub(fwd);
-      if (keys['a'] || keys['arrowleft'])  input.moveDir.sub(right);
-      if (keys['d'] || keys['arrowright']) input.moveDir.add(right);
-
-      if (input.targetPos) {
-        const to = new THREE.Vector3().subVectors(input.targetPos, pos);
-        to.y = 0;
-        if (to.length() < 0.2) { input.targetPos = null; }
-        else { input.moveDir.copy(to.normalize()); }
-      }
-
-      if (input.moveDir.lengthSq() > 0) {
-        input.moveDir.normalize();
-        pos.x += input.moveDir.x * speed * dt;
-        pos.z += input.moveDir.z * speed * dt;
-        const angle = Math.atan2(input.moveDir.x, input.moveDir.z);
-        player.rotation.y += (angle - player.rotation.y) * 0.15;
-        player.position.y = Math.sin(Date.now() * 0.012) * 0.04;
-        staff.rotation.z = -0.25 + Math.sin(Date.now() * 0.015) * 0.12;
-      } else {
-        player.position.y = Math.sin(Date.now() * 0.002) * 0.015;
-      }
-
-      // camera follow
-      const camTarget = new THREE.Vector3(
-        Math.sin(input.camPhi) * Math.cos(input.camTheta) * input.camDist,
-        Math.cos(input.camPhi) * input.camDist,
-        Math.sin(input.camPhi) * Math.sin(input.camTheta) * input.camDist
-      ).add(pos).add(new THREE.Vector3(0, 0.8, 0));
-
-      camera.position.lerp(camTarget, 0.08);
-      camera.lookAt(pos.x, pos.y + 0.8, pos.z);
+    if (mx !== 0 || mz !== 0) {
+      const len = Math.sqrt(mx*mx + mz*mz);
+      pos.x += (mx/len) * speed * dt;
+      pos.z += (mz/len) * speed * dt;
+      const a = Math.atan2(mx, -mz);
+      player.rotation.y += (a - player.rotation.y) * 0.2;
     }
 
-    // ─────────────── ANIMATION LOOP ───────────────
-    const clock = new THREE.Clock();
-    function animate() {
-      requestAnimationFrame(animate);
-      const t = clock.getElapsedTime();
-      const dt = Math.min(clock.getDelta(), 0.1);
-
-      updatePlayer(dt);
-
-      // fire
-      flame.scale.setScalar(0.82 + Math.sin(t*6)*0.07 + Math.sin(t*13)*0.05);
-      flameMat.emissiveIntensity = 0.8 + Math.sin(t*8)*0.35;
-      fireLight.intensity = 5.5 + Math.sin(t*7)*1.8 + Math.sin(t*11)*1.0;
-
-      // NPC
-      npcGroup.position.y = Math.sin(t*1.3)*0.22;
-      halo.rotation.z += 0.006;
-      halo.scale.setScalar(1 + Math.sin(t*2.5)*0.05);
-      glowDisc.material.opacity = 0.16 + Math.sin(t*1.8)*0.06;
-
-      // fireflies
-      const fp = fireflies.geometry.attributes.position.array;
-      for (let i = 0; i < FF; i++) { fp[i*3+1] = ffData[i].by + Math.sin(t*ffData[i].sp + ffData[i].ph) * ffData[i].amp; }
-      fireflies.geometry.attributes.position.needsUpdate = true;
-
-      // sparks
-      const sp = sparks.geometry.attributes.position.array;
-      for (let i = 0; i < SP; i++) {
-        spData[i].life += dt;
-        sp[i*3+1] = 0.25 + spData[i].life * spData[i].sp;
-        if (spData[i].life > spData[i].maxL) { spData[i].life = 0; sp[i*3]=(Math.random()-0.5)*0.35; sp[i*3+1]=0.25; sp[i*3+2]=(Math.random()-0.5)*0.35; }
+    // 碰到高亮地块自动清除
+    if (currentTarget && !playerTarget) {
+      const tp = getTileWorldPos(currentTarget.row, currentTarget.col);
+      if (Math.abs(pos.x - tp.x) < STEP*0.55 && Math.abs(pos.z - tp.z) < STEP*0.55) {
+        const tile = tiles.find(t => t.row === currentTarget.row && t.col === currentTarget.col);
+        if (tile) clearTile(tile);
       }
-      sparks.geometry.attributes.position.needsUpdate = true;
-
-      // summit glow
-      summitGlow.material.emissiveIntensity = 0.8 + Math.sin(t*1.2)*0.35;
-
-      // flags
-      campFlags.forEach((f,i) => { f.rotation.z = Math.sin(t*2 + i)*0.2; });
-
-      // HUD
-      $hudHint.innerHTML = input.targetPos
-        ? '🏃 正在前往目的地...'
-        : '⌨ WASD 移动 | 🖱 拖拽旋转 | 滚轮缩放 | 点击地面移动 | 点击 NPC 对话';
-
-      renderer.render(scene, camera);
     }
+  }
 
-    addEventListener('resize', () => {
-      camera.aspect = innerWidth / innerHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(innerWidth, innerHeight);
-    });
+  // 边界限制 (栅栏内)
+  pos.x = Math.max(-6.5, Math.min(6.5, pos.x));
+  pos.z = Math.max(-6.5, Math.min(6.5, pos.z));
 
-    animate();
-    console.log('🏮 MindForge · 溪谷世界已加载');
-    console.log('   🏃 WASD | 🖱 拖拽 | 🔥 篝火 | 🏔️ 远山 | 🧙 NPC | ✨ 80萤火虫');
-  </script>
+  // 微小浮动
+  player.position.y = Math.sin(Date.now()*0.004)*0.03;
+}
+
+// ══════════════════════════════ ANIMATION ═══════════════════════════
+const clock = new THREE.Clock();
+
+function animate() {
+  requestAnimationFrame(animate);
+  const t = clock.getElapsedTime();
+  const dt = Math.min(clock.getDelta(), 0.1);
+
+  updatePlayer(dt);
+
+  // NPC 浮动
+  npc.position.y = Math.sin(t*1.5)*0.08;
+  exclGroup.rotation.y += 0.02;
+  exclGroup.position.y = Math.sin(t*3)*0.04;
+
+  // 目标环旋转 + 呼吸
+  if (targetRing.visible) {
+    targetRing.rotation.z += 0.015;
+    const s = 1 + Math.sin(t*3)*0.08;
+    targetRing.scale.setScalar(s);
+    targetRing.material.opacity = 0.5 + Math.sin(t*3)*0.3;
+  }
+
+  // 火花粒子衰减
+  for (let i = sparkles.length-1; i >= 0; i--) {
+    const s = sparkles[i];
+    s.userData.life -= dt;
+    if (s.userData.life <= 0) {
+      scene.remove(s);
+      sparkles.splice(i,1);
+      continue;
+    }
+    s.position.x += s.userData.vx * dt;
+    s.position.y += s.userData.vy * dt;
+    s.position.z += s.userData.vz * dt;
+    s.userData.vy += dt * 2; // 微重力
+    s.material.opacity = Math.max(0, s.userData.life);
+  }
+
+  // HUD
+  $hint.innerHTML = playerTarget
+    ? '🏃 前往目标地块...'
+    : '⌨ WASD 移动 &nbsp;|&nbsp; 🖱 点击 NPC 接任务 &nbsp;|&nbsp; 🖱 点击发光环快速前往';
+
+  renderer.render(scene, camera);
+}
+
+// ══════════════════════════════ RESIZE ═════════════════════════════
+addEventListener('resize', () => {
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+// ══════════════════════════════ START ══════════════════════════════
+// 初始已经开垦小屋周围4块地
+[[3,3],[3,4],[4,3],[4,4]].forEach(([r,c]) => {
+  const td = tiles.find(t => t.row===r && t.col===c);
+  if (td) { td.cleared = true; td.mesh.material = clearMat.clone(); if (td.mark) { td.mark.scale.set(0,0,0); } }
+});
+clearedCount = 4;
+$stCleared.textContent = clearedCount;
+
+animate();
+console.log('🌾 MindForge · 晨风农场已加载');
+console.log('   走向发光地块 → 自动开垦 → 火花奖励 → 新任务');
+</script>
 </body>
 </html>
