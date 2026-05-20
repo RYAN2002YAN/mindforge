@@ -5,7 +5,6 @@
   <title>MindForge — 溪谷 · The Vale</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-
     body {
       overflow: hidden;
       background: #3a3040;
@@ -13,704 +12,86 @@
       cursor: grab;
     }
     body:active { cursor: grabbing; }
-    body.pointing { cursor: pointer; }
 
-    canvas { display: block; }
-
-    /* ---- 底部 HUD ---- */
     #hud {
-      position: absolute;
-      bottom: 32px;
-      left: 50%;
-      transform: translateX(-50%);
-      text-align: center;
-      pointer-events: none;
-      user-select: none;
+      position: absolute; bottom: 28px; left: 50%; transform: translateX(-50%);
+      text-align: center; pointer-events: none; user-select: none;
     }
     #hud-title {
-      font-size: 28px;
-      color: #f5e6d3;
+      font-size: 26px; color: #f5e6d3;
       text-shadow: 0 0 20px rgba(255,200,140,0.5), 0 2px 4px rgba(0,0,0,0.4);
       letter-spacing: 4px;
     }
     #hud-hint {
-      font-size: 13px;
-      color: rgba(220,200,170,0.7);
-      margin-top: 6px;
-      letter-spacing: 1px;
+      font-size: 12px; color: rgba(220,200,170,0.65); margin-top: 5px;
     }
 
-    /* ---- 顶部状态栏 ---- */
     #top-bar {
-      position: absolute;
-      top: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      display: flex;
-      gap: 24px;
-      pointer-events: none;
-      user-select: none;
+      position: absolute; top: 18px; left: 50%; transform: translateX(-50%);
+      display: flex; gap: 22px; pointer-events: none; user-select: none;
     }
-    .stat-item {
-      text-align: center;
-      color: #e8d5bc;
-      font-size: 12px;
-      letter-spacing: 1px;
-      opacity: 0.7;
-    }
-    .stat-value {
-      font-size: 18px;
-      color: #f0c060;
-      text-shadow: 0 0 8px rgba(240,192,96,0.4);
-    }
+    .stat-item { text-align: center; color: #e8d5bc; font-size: 11px; opacity: 0.7; }
+    .stat-value { font-size: 17px; color: #f0c060; text-shadow: 0 0 8px rgba(240,192,96,0.4); }
 
-    /* ---- NPC 对话框 ---- */
     #dialog {
-      position: absolute;
-      bottom: 140px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(30,22,18,0.92);
-      border: 1px solid rgba(200,160,100,0.4);
-      border-radius: 12px;
-      padding: 20px 28px;
-      color: #e8d5bc;
-      max-width: 420px;
-      text-align: center;
-      display: none;
-      backdrop-filter: blur(8px);
-      box-shadow: 0 0 40px rgba(0,0,0,0.5);
+      position: absolute; bottom: 130px; left: 50%; transform: translateX(-50%);
+      background: rgba(28,20,16,0.93); border: 1px solid rgba(200,160,100,0.35);
+      border-radius: 12px; padding: 18px 26px; color: #e8d5bc;
+      max-width: 400px; text-align: center; display: none;
+      backdrop-filter: blur(8px); box-shadow: 0 0 40px rgba(0,0,0,0.5);
     }
-    #dialog .npc-name { font-size: 14px; color: #c9a050; margin-bottom: 6px; }
-    #dialog .npc-line { font-size: 16px; line-height: 1.6; }
-    #dialog .npc-hint  { font-size: 12px; color: rgba(200,180,150,0.5); margin-top: 10px; }
+    #dialog .npc-name { font-size: 13px; color: #c9a050; margin-bottom: 5px; }
+    #dialog .npc-line { font-size: 15px; line-height: 1.55; }
+    #dialog .npc-hint  { font-size: 11px; color: rgba(200,180,150,0.45); margin-top: 8px; }
 
-    /* ---- 响应式 ---- */
+    /* 山顶进度条 */
+    #mountain-progress {
+      position: absolute; top: 70px; right: 20px;
+      pointer-events: none; user-select: none;
+      color: #e8d5bc; font-size: 11px; text-align: right; opacity: 0.75;
+    }
+    #mt-bar-bg {
+      width: 100px; height: 4px; background: rgba(255,255,255,0.15);
+      border-radius: 2px; margin-top: 3px; margin-left: auto;
+    }
+    #mt-bar-fill {
+      width: 8%; height: 100%; background: #f0c060;
+      border-radius: 2px; transition: width 0.5s ease;
+    }
+
     @media (max-width: 640px) {
-      #hud-title { font-size: 20px; }
-      #dialog { max-width: 90vw; padding: 14px 18px; }
+      #hud-title { font-size: 18px; }
+      #dialog { max-width: 88vw; padding: 12px 16px; }
     }
   </style>
 </head>
 <body>
-  <!-- HUD -->
-  <div id="hud">
-    <div id="hud-title">🏮 溪 谷 之 地</div>
-    <div id="hud-hint">🖱 拖拽旋转 &nbsp;|&nbsp; 滚轮缩放 &nbsp;|&nbsp; 走向 NPC 对话</div>
-  </div>
 
-  <!-- Top status -->
   <div id="top-bar">
     <div class="stat-item"><div class="stat-value" id="stat-tasks">5</div>待解任务</div>
     <div class="stat-item"><div class="stat-value" id="stat-day">1</div>今日完成</div>
     <div class="stat-item"><div class="stat-value" id="stat-streak">🔥 3</div>连续天数</div>
   </div>
 
-  <!-- NPC Dialog -->
+  <div id="mountain-progress">
+    登顶进度
+    <div id="mt-bar-bg"><div id="mt-bar-fill"></div></div>
+  </div>
+
+  <div id="hud">
+    <div id="hud-title">🏮 溪 谷 之 地</div>
+    <div id="hud-hint">⌨ WASD 移动 &nbsp;|&nbsp; 🖱 拖拽旋转 &nbsp;|&nbsp; 滚轮缩放 &nbsp;|&nbsp; 点击地面移动 &nbsp;|&nbsp; 点击 NPC 对话</div>
+  </div>
+
   <div id="dialog">
     <div class="npc-name" id="dlg-name"></div>
     <div class="npc-line" id="dlg-line"></div>
-    <div class="npc-hint" id="dlg-hint"></div>
+    <div class="npc-hint"  id="dlg-hint"></div>
   </div>
 
-  <!-- Three.js Import Map -->
   <script type="importmap">
     { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
   </script>
-
-  <script type="module">
-    import * as THREE from 'three';
-
-    // ═══════════════════════════════════════
-    //  SCENE · CAMERA · RENDERER
-    // ═══════════════════════════════════════
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x3a3040);          // deep twilight purple
-    scene.fog = new THREE.FogExp2(0xd4c5b9, 0.00035);     // warm mist
-
-    const camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 0.5, 80);
-    camera.position.set(8, 10, 14);
-    camera.lookAt(0, 0, 0);
-
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.setSize(innerWidth, innerHeight);
-    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.15;
-    document.body.appendChild(renderer.domElement);
-
-    // ═══════════════════════════════════════
-    //  LIGHTING  — 金色时刻
-    // ═══════════════════════════════════════
-    // Sky / ground ambient
-    scene.add(new THREE.HemisphereLight(0xffeedd, 0x4a6a3a, 1.2));
-
-    // Low warm sun
-    const sun = new THREE.DirectionalLight(0xffcc88, 4.5);
-    sun.position.set(15, 18, -4);
-    sun.castShadow = true;
-    sun.shadow.mapSize.set(2048, 2048);
-    sun.shadow.camera.near = 0.5;
-    sun.shadow.camera.far = 60;
-    sun.shadow.camera.left  = -18;
-    sun.shadow.camera.right =  18;
-    sun.shadow.camera.top   =  18;
-    sun.shadow.camera.bottom= -18;
-    sun.shadow.bias = -0.0003;
-    sun.shadow.normalBias = 0.02;
-    scene.add(sun);
-
-    // ═══════════════════════════════════════
-    //  HELPER: 创建小屋
-    // ═══════════════════════════════════════
-    function createCottage(x, z, bodyColor, roofColor, rotation = 0) {
-      const group = new THREE.Group();
-
-      // 墙体
-      const body = new THREE.Mesh(
-        new THREE.BoxGeometry(1.3, 1.4, 1.1),
-        new THREE.MeshStandardMaterial({ color: bodyColor, roughness: 0.75 })
-      );
-      body.position.y = 0.7;
-      body.castShadow = true;
-      body.receiveShadow = true;
-      group.add(body);
-
-      // 屋顶 (四棱锥)
-      const roofGeo = new THREE.ConeGeometry(1.1, 0.9, 4);
-      roofGeo.rotateY(Math.PI / 4);
-      const roof = new THREE.Mesh(
-        roofGeo,
-        new THREE.MeshStandardMaterial({ color: roofColor, roughness: 0.6 })
-      );
-      roof.position.y = 1.65;
-      roof.castShadow = true;
-      roof.receiveShadow = true;
-      group.add(roof);
-
-      // 门
-      const door = new THREE.Mesh(
-        new THREE.BoxGeometry(0.3, 0.55, 0.06),
-        new THREE.MeshStandardMaterial({ color: 0x5c3a1e, roughness: 0.5 })
-      );
-      door.position.set(0, 0.28, 0.58);
-      group.add(door);
-
-      // 窗户 (发光)
-      const winGeo = new THREE.PlaneGeometry(0.25, 0.25);
-      const winMat = new THREE.MeshStandardMaterial({
-        color: 0xffcc66, emissive: 0xff9922, emissiveIntensity: 0.6, roughness: 0.3
-      });
-      const winL = new THREE.Mesh(winGeo, winMat);
-      winL.position.set(-0.35, 0.95, 0.58);
-      group.add(winL);
-      const winR = new THREE.Mesh(winGeo, winMat);
-      winR.position.set(0.35, 0.95, 0.58);
-      group.add(winR);
-
-      // 烟囱
-      const chimney = new THREE.Mesh(
-        new THREE.BoxGeometry(0.22, 0.5, 0.22),
-        new THREE.MeshStandardMaterial({ color: 0x8b7355, roughness: 0.7 })
-      );
-      chimney.position.set(0.35, 1.85, -0.25);
-      chimney.castShadow = true;
-      group.add(chimney);
-
-      group.position.set(x, 0, z);
-      group.rotation.y = rotation;
-      return group;
-    }
-
-    // ═══════════════════════════════════════
-    //  HELPER: 创建一棵树
-    // ═══════════════════════════════════════
-    function createTree(x, z, scale = 1) {
-      const group = new THREE.Group();
-
-      const trunkH = 1.2 * scale;
-      const trunk = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.12 * scale, 0.18 * scale, trunkH, 6),
-        new THREE.MeshStandardMaterial({ color: 0x8b6b4a, roughness: 0.85 })
-      );
-      trunk.position.y = trunkH / 2;
-      trunk.castShadow = true;
-      trunk.receiveShadow = true;
-      group.add(trunk);
-
-      // 三层树冠 (松树风格)
-      const crownColors = [0x5a7a3a, 0x4d6b2e, 0x3d5a22];
-      crownColors.forEach((c, i) => {
-        const crown = new THREE.Mesh(
-          new THREE.ConeGeometry(0.7 * scale - i * 0.15 * scale, 0.8 * scale, 7),
-          new THREE.MeshStandardMaterial({ color: c, roughness: 0.7 })
-        );
-        crown.position.y = trunkH + i * 0.45 * scale;
-        crown.castShadow = true;
-        crown.receiveShadow = true;
-        group.add(crown);
-      });
-
-      group.position.set(x, 0, z);
-      return group;
-    }
-
-    // ═══════════════════════════════════════
-    //  HELPER: 石板路 (一系列扁石)
-    // ═══════════════════════════════════════
-    function createPath(points, stoneCount = 18) {
-      const group = new THREE.Group();
-      const mat = new THREE.MeshStandardMaterial({ color: 0xb8a896, roughness: 0.85 });
-
-      for (let i = 0; i < stoneCount; i++) {
-        const t = i / (stoneCount - 1);
-        const x = points[0].x + (points[1].x - points[0].x) * t + (Math.random() - 0.5) * 0.6;
-        const z = points[0].z + (points[1].z - points[0].z) * t + (Math.random() - 0.5) * 0.6;
-        const stone = new THREE.Mesh(
-          new THREE.CylinderGeometry(0.2 + Math.random() * 0.18, 0.18 + Math.random() * 0.18, 0.06, 5),
-          mat
-        );
-        stone.position.set(x, 0.03, z);
-        stone.receiveShadow = true;
-        group.add(stone);
-      }
-      return group;
-    }
-
-    // ═══════════════════════════════════════
-    //  GROUND
-    // ═══════════════════════════════════════
-    const ground = new THREE.Mesh(
-      new THREE.PlaneGeometry(50, 50),
-      new THREE.MeshStandardMaterial({ color: 0x5a7d4a, roughness: 0.95 })
-    );
-    ground.rotation.x = -Math.PI / 2;
-    ground.receiveShadow = true;
-    scene.add(ground);
-
-    // 中心小广场 (颜色略浅的圆形)
-    const plaza = new THREE.Mesh(
-      new THREE.CylinderGeometry(1.5, 1.6, 0.04, 24),
-      new THREE.MeshStandardMaterial({ color: 0xc8b898, roughness: 0.8 })
-    );
-    plaza.position.y = 0.02;
-    plaza.receiveShadow = true;
-    scene.add(plaza);
-
-    // ═══════════════════════════════════════
-    //  BUILDINGS  — 四栋小屋围成圈
-    // ═══════════════════════════════════════
-    //        [北: 学者书屋]
-    //  [西:铁匠铺]  ⍟  [东:旅店]
-    //        [南: 村长屋]
-    const cottages = [
-      { x: 0,   z: -5.5, rot: 0,            body: 0xf5ecd7, roof: 0xc4723a, label: '村长屋' },
-      { x: -4.5,z: -1.5, rot: Math.PI / 5,   body: 0xefe0c8, roof: 0xb85a2e, label: '铁匠铺' },
-      { x: 4.5, z: -1.5, rot: -Math.PI / 5,  body: 0xf0e4d0, roof: 0x9e4a2a, label: '旅店'   },
-      { x: 0,   z: 4.5,  rot: Math.PI,        body: 0xe8dcc8, roof: 0x6b4a3a, label: '书屋'   },
-    ];
-
-    cottages.forEach(c => {
-      scene.add(createCottage(c.x, c.z, c.body, c.roof, c.rot));
-    });
-
-    // ═══════════════════════════════════════
-    //  PATHS  — 石板路连接广场到各小屋
-    // ═══════════════════════════════════════
-    cottages.forEach(c => {
-      const dx = c.x, dz = c.z;
-      const dist = Math.sqrt(dx * dx + dz * dz);
-      const midX = dx * 0.4, midZ = dz * 0.4;
-      scene.add(createPath([{ x: 0, z: 0 }, { x: dx, z: dz }], 14));
-    });
-
-    // ═══════════════════════════════════════
-    //  CENTER: 篝火
-    // ═══════════════════════════════════════
-    const campfireGroup = new THREE.Group();
-
-    // 石圈
-    for (let i = 0; i < 10; i++) {
-      const angle = (i / 10) * Math.PI * 2;
-      const stone = new THREE.Mesh(
-        new THREE.SphereGeometry(0.13, 5, 4),
-        new THREE.MeshStandardMaterial({ color: 0x7a7a7a, roughness: 0.7 })
-      );
-      stone.position.set(Math.cos(angle) * 0.55, 0.08, Math.sin(angle) * 0.55);
-      stone.castShadow = true;
-      campfireGroup.add(stone);
-    }
-
-    // 木柴
-    for (let i = 0; i < 3; i++) {
-      const log = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.06, 0.06, 0.9, 5),
-        new THREE.MeshStandardMaterial({ color: 0x4a3020, roughness: 0.95 })
-      );
-      log.rotation.z = Math.PI / 2;
-      log.rotation.y = (i / 3) * Math.PI;
-      log.position.y = 0.12;
-      log.castShadow = true;
-      campfireGroup.add(log);
-    }
-
-    campfireGroup.position.set(0, 0, 0);
-    scene.add(campfireGroup);
-
-    // 篝火点光源
-    const fireLight = new THREE.PointLight(0xff8830, 8, 6, 1.5);
-    fireLight.position.set(0, 0.6, 0);
-    fireLight.castShadow = true;
-    fireLight.shadow.mapSize.set(512, 512);
-    scene.add(fireLight);
-
-    // 篝火上方火焰 (扁锥体 + 发光)
-    const flameGeo = new THREE.ConeGeometry(0.22, 0.55, 6);
-    const flameMat = new THREE.MeshStandardMaterial({
-      color: 0xff8830, emissive: 0xff5500, emissiveIntensity: 1.2, roughness: 0.2
-    });
-    const flame = new THREE.Mesh(flameGeo, flameMat);
-    flame.position.set(0, 0.48, 0);
-    scene.add(flame);
-
-    // ═══════════════════════════════════════
-    //  TREES  — 环绕村庄
-    // ═══════════════════════════════════════
-    const treePositions = [
-      [-7, -7], [7, -7], [-7, 7], [7, 7],
-      [-6, -3], [6, -3], [-6, 3], [6, 3],
-      [-3, -7], [3, -7], [-3, 7], [3, 7],
-      [-8, 0], [8, 0], [0, -8], [0, 8],
-      [-5, -5.5], [5, -5.5], [-5, 5.5], [5, 5.5],
-    ];
-    treePositions.forEach(([tx, tz]) => {
-      const s = 0.7 + Math.random() * 0.9;
-      const offsetX = (Math.random() - 0.5) * 1.2;
-      const offsetZ = (Math.random() - 0.5) * 1.2;
-      scene.add(createTree(tx + offsetX, tz + offsetZ, s));
-    });
-
-    // ═══════════════════════════════════════
-    //  FLOWERS  — 散落的小花
-    // ═══════════════════════════════════════
-    const flowerGroup = new THREE.Group();
-    const flowerColors = [0xffdddd, 0xffffff, 0xffffcc, 0xffd4e0, 0xfff0dd];
-    for (let i = 0; i < 80; i++) {
-      const angle = Math.random() * Math.PI * 2;
-      const radius = 1.8 + Math.random() * 5;
-      const fx = Math.cos(angle) * radius + (Math.random() - 0.5) * 1.5;
-      const fz = Math.sin(angle) * radius + (Math.random() - 0.5) * 1.5;
-      const color = flowerColors[Math.floor(Math.random() * flowerColors.length)];
-
-      // 茎
-      const stem = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.015, 0.02, 0.25, 4),
-        new THREE.MeshStandardMaterial({ color: 0x4a7a3a })
-      );
-      stem.position.set(fx, 0.13, fz);
-      flowerGroup.add(stem);
-      // 花瓣 (小球)
-      const petal = new THREE.Mesh(
-        new THREE.SphereGeometry(0.05, 5, 4),
-        new THREE.MeshStandardMaterial({ color, roughness: 0.4 })
-      );
-      petal.position.set(fx, 0.28, fz);
-      flowerGroup.add(petal);
-    }
-    scene.add(flowerGroup);
-
-    // ═══════════════════════════════════════
-    //  NPC  — 守夜人 (发光漂浮)
-    // ═══════════════════════════════════════
-    const npcGroup = new THREE.Group();
-
-    // 身体
-    const npcBody = new THREE.Mesh(
-      new THREE.CapsuleGeometry(0.25, 0.6, 4, 8),
-      new THREE.MeshStandardMaterial({ color: 0x5c4060, roughness: 0.5 })
-    );
-    npcBody.position.y = 0.55;
-    npcBody.castShadow = true;
-    npcGroup.add(npcBody);
-
-    // 头部
-    const npcHead = new THREE.Mesh(
-      new THREE.SphereGeometry(0.22, 8, 6),
-      new THREE.MeshStandardMaterial({ color: 0xd4b896, roughness: 0.6 })
-    );
-    npcHead.position.y = 1.1;
-    npcHead.castShadow = true;
-    npcGroup.add(npcHead);
-
-    // 斗篷帽子
-    const npcHood = new THREE.Mesh(
-      new THREE.ConeGeometry(0.28, 0.3, 6),
-      new THREE.MeshStandardMaterial({ color: 0x4a3050, roughness: 0.55 })
-    );
-    npcHood.position.y = 1.35;
-    npcHead.add(npcHood);
-
-    // 光环 (跟随 NPC)
-    const haloGeo = new THREE.TorusGeometry(0.35, 0.04, 8, 24);
-    const haloMat = new THREE.MeshStandardMaterial({
-      color: 0xffcc88, emissive: 0xffaa44, emissiveIntensity: 0.8, roughness: 0.2
-    });
-    const halo = new THREE.Mesh(haloGeo, haloMat);
-    halo.rotation.x = Math.PI / 2;
-    halo.position.y = 1.5;
-    npcGroup.add(halo);
-
-    // 地面光晕 (透明圆盘)
-    const glowDisc = new THREE.Mesh(
-      new THREE.CircleGeometry(0.55, 16),
-      new THREE.MeshBasicMaterial({ color: 0xffcc88, transparent: true, opacity: 0.25 })
-    );
-    glowDisc.rotation.x = -Math.PI / 2;
-    glowDisc.position.y = 0.02;
-    npcGroup.add(glowDisc);
-
-    npcGroup.position.set(1.2, 0, -1.8);
-    scene.add(npcGroup);
-
-    // ═══════════════════════════════════════
-    //  FIREFLIES  — 大量萤火虫粒子
-    // ═══════════════════════════════════════
-    const fireflyCount = 250;
-    const fireflyPositions = new Float32Array(fireflyCount * 3);
-    const fireflyData = []; // 存每个萤火虫的动画参数
-    for (let i = 0; i < fireflyCount; i++) {
-      fireflyPositions[i * 3]     = (Math.random() - 0.5) * 18;
-      fireflyPositions[i * 3 + 1] = 0.3 + Math.random() * 5;
-      fireflyPositions[i * 3 + 2] = (Math.random() - 0.5) * 18;
-      fireflyData.push({
-        baseY: fireflyPositions[i * 3 + 1],
-        speed: 0.4 + Math.random() * 1.2,
-        amplitude: 0.2 + Math.random() * 0.9,
-        phase: Math.random() * Math.PI * 2,
-      });
-    }
-    const fireflyGeo = new THREE.BufferGeometry();
-    fireflyGeo.setAttribute('position', new THREE.BufferAttribute(fireflyPositions, 3));
-    const fireflyMat = new THREE.PointsMaterial({
-      color: 0xffdd88, size: 0.06,
-      transparent: true, opacity: 0.7,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-    });
-    const fireflies = new THREE.Points(fireflyGeo, fireflyMat);
-    scene.add(fireflies);
-
-    // 篝火火星
-    const sparkCount = 40;
-    const sparkPositions = new Float32Array(sparkCount * 3);
-    const sparkData = [];
-    for (let i = 0; i < sparkCount; i++) {
-      sparkPositions[i * 3]     = (Math.random() - 0.5) * 0.4;
-      sparkPositions[i * 3 + 1] = 0.3 + Math.random() * 1.5;
-      sparkPositions[i * 3 + 2] = (Math.random() - 0.5) * 0.4;
-      sparkData.push({
-        speed: 0.6 + Math.random() * 1.5,
-        life: Math.random(),
-        maxLife: 0.6 + Math.random() * 1.5,
-      });
-    }
-    const sparkGeo = new THREE.BufferGeometry();
-    sparkGeo.setAttribute('position', new THREE.BufferAttribute(sparkPositions, 3));
-    const sparkMat = new THREE.PointsMaterial({
-      color: 0xff9944, size: 0.04,
-      transparent: true, opacity: 0.8,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-    });
-    const sparks = new THREE.Points(sparkGeo, sparkMat);
-    scene.add(sparks);
-
-    // ═══════════════════════════════════════
-    //  SKY DECORATION  — 远处柔和光点 (模拟远方灯火)
-    // ═══════════════════════════════════════
-    const distantLights = new THREE.Points(
-      new THREE.BufferGeometry().setFromPoints(
-        Array.from({ length: 40 }, () => new THREE.Vector3(
-          (Math.random() - 0.5) * 35, 2 + Math.random() * 8, (Math.random() - 0.5) * 35
-        ))
-      ),
-      new THREE.PointsMaterial({ color: 0xffd4a0, size: 0.12, transparent: true, opacity: 0.5, depthWrite: false })
-    );
-    scene.add(distantLights);
-
-    // ═══════════════════════════════════════
-    //  CAMERA CONTROLS  — 拖拽旋转 + 滚轮缩放
-    // ═══════════════════════════════════════
-    let camTheta = 0.55;        // 水平角度 (弧度)
-    let camPhi   = 0.85;        // 垂直角度 (弧度, 0=顶视, π/2=水平)
-    let camDist  = 13;          // 距原点距离
-    let isDragging = false;
-    let prevMouse = { x: 0, y: 0 };
-
-    function updateCamera() {
-      const cx = Math.sin(camPhi) * Math.cos(camTheta) * camDist;
-      const cy = Math.cos(camPhi) * camDist;
-      const cz = Math.sin(camPhi) * Math.sin(camTheta) * camDist;
-      camera.position.set(cx, cy, cz);
-      camera.lookAt(0, 0.6, 0);
-    }
-
-    renderer.domElement.addEventListener('pointerdown', e => {
-      isDragging = true;
-      prevMouse.x = e.clientX;
-      prevMouse.y = e.clientY;
-    });
-    window.addEventListener('pointerup', () => { isDragging = false; });
-    window.addEventListener('pointermove', e => {
-      if (!isDragging) return;
-      const dx = e.clientX - prevMouse.x;
-      const dy = e.clientY - prevMouse.y;
-      camTheta -= dx * 0.005;
-      camPhi   += dy * 0.005;
-      camPhi    = Math.max(0.2, Math.min(1.4, camPhi)); // 限制垂直角
-      prevMouse.x = e.clientX;
-      prevMouse.y = e.clientY;
-      updateCamera();
-    });
-    renderer.domElement.addEventListener('wheel', e => {
-      camDist += e.deltaY * 0.015;
-      camDist = Math.max(4, Math.min(28, camDist));
-      updateCamera();
-    });
-    updateCamera();
-
-    // ═══════════════════════════════════════
-    //  RAYCASTER  — 点击检测 NPC
-    // ═══════════════════════════════════════
-    const raycaster = new THREE.Raycaster();
-    raycaster.far = 6;
-    const mouse = new THREE.Vector2();
-
-    renderer.domElement.addEventListener('click', e => {
-      // 如果刚拖拽过，不触发点击
-      if (Math.abs(e.clientX - prevMouse.x) > 3 || Math.abs(e.clientY - prevMouse.y) > 3) return;
-
-      mouse.x = (e.clientX / innerWidth)  * 2 - 1;
-      mouse.y = -(e.clientY / innerHeight) * 2 + 1;
-
-      raycaster.setFromCamera(mouse, camera);
-      const hits = raycaster.intersectObjects(npcGroup.children, true);
-
-      const dialog = document.getElementById('dialog');
-      if (hits.length > 0) {
-        document.getElementById('dlg-name').textContent = '守夜人 · 艾尔文';
-        document.getElementById('dlg-line').textContent =
-          '「旅行者，你来了。篝火旁还有未完成的使命——今日可有一事，值得你为之挥剑？」';
-        document.getElementById('dlg-hint').textContent = '按 E 键接取任务 · 按 Esc 离开';
-        dialog.style.display = 'block';
-      }
-    });
-
-    // 键盘 E 和 Esc
-    window.addEventListener('keydown', e => {
-      const dialog = document.getElementById('dialog');
-      if (e.key === 'Escape') {
-        dialog.style.display = 'none';
-      }
-      if (e.key === 'e' || e.key === 'E') {
-        if (dialog.style.display === 'block') {
-          document.getElementById('dlg-line').textContent =
-            '「好！溪谷今日有三件事：① 取水 ② 劈柴 ③ 送信给铁匠。你想从哪一件开始？」';
-          document.getElementById('dlg-hint').textContent = '按 1/2/3 选择任务 · 按 Esc 离开';
-        }
-      }
-      if (e.key === '1' || e.key === '2' || e.key === '3') {
-        if (dialog.style.display === 'block') {
-          const tasks = ['取水', '劈柴', '送信给铁匠'];
-          const t = tasks[parseInt(e.key) - 1];
-          document.getElementById('dlg-line').textContent =
-            `「${t}——明智之选。此去向东，任务完成时回到篝火旁，我会为你记下。」`;
-          document.getElementById('dlg-hint').textContent = '任务已接取 ✨ 按 Esc 关闭';
-          document.getElementById('stat-tasks').textContent = '4';
-        }
-      }
-    });
-
-    // ═══════════════════════════════════════
-    //  ANIMATION LOOP
-    // ═══════════════════════════════════════
-    const clock = new THREE.Clock();
-
-    function animate() {
-      requestAnimationFrame(animate);
-      const t = clock.getElapsedTime();
-
-      // 火焰缩放
-      const flameScale = 0.85 + Math.sin(t * 6) * 0.08 + Math.sin(t * 13) * 0.06;
-      flame.scale.setScalar(flameScale);
-      flame.material.emissiveIntensity = 0.9 + Math.sin(t * 8) * 0.4;
-      fireLight.intensity = 6 + Math.sin(t * 7) * 2 + Math.sin(t * 11) * 1.2;
-
-      // NPC 浮动
-      npcGroup.position.y = Math.sin(t * 1.3) * 0.25;
-      halo.rotation.z += 0.008;
-      halo.scale.setScalar(1 + Math.sin(t * 2.5) * 0.06);
-
-      // 光环 NPC 底座
-      glowDisc.material.opacity = 0.2 + Math.sin(t * 1.8) * 0.08;
-
-      // 萤火虫动画
-      const posArr = fireflies.geometry.attributes.position.array;
-      for (let i = 0; i < fireflyCount; i++) {
-        const fd = fireflyData[i];
-        posArr[i * 3 + 1] = fd.baseY + Math.sin(t * fd.speed + fd.phase) * fd.amplitude;
-        // 微小的水平漂移
-        posArr[i * 3]     += Math.cos(t * 0.7 + fd.phase) * 0.001;
-        posArr[i * 3 + 2] += Math.sin(t * 0.6 + fd.phase) * 0.001;
-      }
-      fireflies.geometry.attributes.position.needsUpdate = true;
-      fireflies.material.opacity = 0.45 + Math.sin(t * 1.5) * 0.15;
-
-      // 火星动画 (向上飘，循环)
-      const spArr = sparks.geometry.attributes.position.array;
-      for (let i = 0; i < sparkCount; i++) {
-        const sd = sparkData[i];
-        sd.life += 0.016;
-        spArr[i * 3 + 1] = 0.3 + sd.life * sd.speed;
-        spArr[i * 3]     += (Math.sin(t * 3 + sd.life) * 0.008);
-        spArr[i * 3 + 2] += (Math.cos(t * 3 + sd.life) * 0.008);
-        if (sd.life > sd.maxLife) {
-          sd.life = 0;
-          spArr[i * 3]     = (Math.random() - 0.5) * 0.4;
-          spArr[i * 3 + 1] = 0.3;
-          spArr[i * 3 + 2] = (Math.random() - 0.5) * 0.4;
-        }
-      }
-      sparks.geometry.attributes.position.needsUpdate = true;
-
-      // 远方灯火闪烁
-      distantLights.material.opacity = 0.3 + Math.sin(t * 0.7) * 0.2;
-
-      // 花朵轻微摇曳
-      flowerGroup.children.forEach((child, i) => {
-        if (child.material?.color) {
-          // skip stems, only affect petals (spheres have roughness)
-        }
-      });
-
-      renderer.render(scene, camera);
-    }
-    animate();
-
-    // ═══════════════════════════════════════
-    //  RESIZE
-    // ═══════════════════════════════════════
-    addEventListener('resize', () => {
-      camera.aspect = innerWidth / innerHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(innerWidth, innerHeight);
-    });
-
-    console.log('🏮 MindForge · 溪谷世界已加载');
-    console.log('   🖱 拖拽旋转 | 滚轮缩放 | 点击 NPC 对话');
-    console.log('   🏘  四栋小屋 | 🌲 松林环绕 | 🔥 篝火长明');
-  </script>
+  <script type="module" src="js/main.js"></script>
 </body>
 </html>
